@@ -2058,7 +2058,12 @@ func (p *Provider) DeleteInterface(ctx context.Context, req *provider.DeleteInte
 	bfd := new(BFD)
 	bfd.ID = name
 	sb.Delete(bfd)
-	if req.Interface.Spec.Type == v1alpha1.InterfaceTypePhysical || req.Interface.Spec.Type == v1alpha1.InterfaceTypeAggregate {
+	// Only physical interfaces, which are reset rather than deleted. Resetting
+	// the spanning tree configuration of an interface that is deleted in the
+	// same request fails: the reset is a replace, gNMI applies deletes before
+	// replaces, and the interface is gone by then. The device drops the
+	// configuration along with the interface anyway.
+	if req.Interface.Spec.Type == v1alpha1.InterfaceTypePhysical {
 		stp := &SpanningTree{IfName: name}
 		if err = p.client.GetConfig(ctx, stp); err == nil {
 			sb.Delete(stp)
